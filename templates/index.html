@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub Repo RAG Analyzer</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="home-container">
+  <div class="home-hero">
+    <div class="badge">🔍 AI-Powered Code Intelligence</div>
+    <h1>GitHub Repository <span class="highlight">RAG Analyzer</span></h1>
+    <p class="tagline">
+      Connect any public GitHub repository and ask natural language questions
+      to understand code structure, logic, and implementation — instantly.
+    </p>
+    <a href="{{ url_for('analyzer') }}" class="cta-btn">Analyze a GitHub Repo →</a>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Retrieval-Augmented</h3>
+      <p>Code is chunked, embedded, and stored in a vector database for accurate, context-aware search.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🧠</div>
+      <h3>AI-Powered Answers</h3>
+      <p>Ask questions in plain English and get explanations grounded in the actual codebase.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📁</div>
+      <h3>Source-Cited</h3>
+      <p>Every answer references the exact files it was pulled from, so you can dig deeper.</p>
+    </div>
+  </div>
+
+  <div class="about-section">
+    <h2>About this project</h2>
+    <p>
+      Understanding a new codebase is often the slowest part of onboarding onto a project.
+      This tool builds a code-aware retrieval pipeline over any public repository — extracting
+      files, embedding them locally, and using an LLM to answer questions about structure,
+      logic, and implementation — so developers can explore and understand large codebases faster.
+    </p>
+    <div class="tech-stack">
+      <span>Python</span>
+      <span>Flask</span>
+      <span>LangChain</span>
+      <span>FAISS</span>
+      <span>Groq LLM</span>
+      <span>GitHub API</span>
+    </div>
+  </div>
+
+  <footer class="home-footer">
+    <p>Built by Rutuja Bidarkar</p>
+  </footer>
+</div>
+
+</body>
+</html>
