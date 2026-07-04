@@ -1,3 +1,4 @@
+import os
 from github import Github
 
 def fetch_repo_files(repo_url, github_token, max_files=150):
@@ -48,3 +49,22 @@ def fetch_repo_files(repo_url, github_token, max_files=150):
         docs.insert(0, {"path": "__REPO_STRUCTURE__", "content": tree_text})
 
     return docs
+
+def detect_main_language(files):
+    ext_map = {
+        ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript (React)",
+        ".ts": "TypeScript", ".tsx": "TypeScript (React)", ".java": "Java",
+        ".go": "Go", ".rb": "Ruby", ".cpp": "C++", ".c": "C",
+        ".html": "HTML", ".css": "CSS", ".md": "Markdown", ".json": "JSON"
+    }
+    counts = {}
+    for f in files:
+        if f["path"] == "__REPO_STRUCTURE__":
+            continue
+        ext = os.path.splitext(f["path"])[1]
+        lang = ext_map.get(ext)
+        if lang:
+            counts[lang] = counts.get(lang, 0) + 1
+    if not counts:
+        return "Unknown"
+    return max(counts, key=counts.get)

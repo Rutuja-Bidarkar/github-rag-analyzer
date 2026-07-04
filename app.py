@@ -1,8 +1,9 @@
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 from flask import Flask, render_template, request, jsonify, session
 from dotenv import load_dotenv
-from github_loader import fetch_repo_files
-from rag_engine import build_vectorstore, get_qa_chain
+from github_loader import fetch_repo_files, detect_main_language
+from rag_engine import build_vectorstore, get_qa_chain, get_or_generate_overview
 
 load_dotenv()
 app = Flask(__name__)
@@ -26,16 +27,43 @@ def analyzer():
 @app.route("/connect", methods=["POST"])
 def connect():
     repo_url = request.json.get("repo_url")
-    files = fetch_repo_files(repo_url, GITHUB_TOKEN, max_files=40)
+    files = fetch_repo_files(repo_url, GITHUB_TOKEN, max_files=100)
     if not files:
         return jsonify({"error": "No readable files found."}), 400
-    try: 
-        vs = build_vectorstore(files, repo_url) 
-    except Exception as e: 
-        return jsonify({"error": f"Failed to index repo: {str(e)}"}), 500 
+    try:
+        vs = build_vectorstore(files, repo_url)
+    except Exception as e:
+        return jsonify({"error": f"Failed to index repo: {str(e)}"}), 500
+
     VECTORSTORES[repo_url] = vs
     session["repo"] = repo_url
-    return jsonify({"message": f"Indexed {len(files)} files from {repo_url}"})
+
+    try:
+        overview = get_or_generate_overview(files, repo_url, GROQ_API_KEY)
+    except Exception as e:
+        overview = None
+        print(f"Overview generation failed: {e}")
+
+    try:
+        chunk_count = vs.index.ntotal
+    except Exception:
+        chunk_count = None
+
+    repo_name = repo_url.rstrip("/").split("github.com/")[-1]
+    real_files = [f for f in files if f["path"] != "__REPO_STRUCTURE__"]
+
+    stats = {
+        "repo_name": repo_name,
+        "files_indexed": len(real_files),
+        "chunks_created": chunk_count,
+        "main_language": detect_main_language(files)
+    }
+
+    return jsonify({
+        "message": f"Indexed {len(real_files)} files from {repo_url}",
+        "overview": overview,
+        "stats": stats
+    })
 
 
 

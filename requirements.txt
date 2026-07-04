@@ -10,5 +10,4 @@ tiktoken
 gunicorn
 tenacity
 langchain-groq
-sentence-transformers
-langchain-huggingface
+fastembed

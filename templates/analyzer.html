@@ -3,49 +3,207 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitHub Repo RAG Analyzer</title>
+<title>AI Repository Analyzer</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<div class="container">
-  <header>
-    <a href="{{ url_for('home') }}" class="back-link">← Home</a>
-    <h1>🔍 GitHub Repository RAG Analyzer</h1>
-    <p>Connect a public repo and ask questions about its code.</p>
-  </header>
+<div class="page">
 
-  <section class="connect-box">
-    <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo" />
-    <button id="connectBtn">Connect</button>
-  </section>
+  <a href="{{ url_for('home') }}" class="back-link">← Home</a>
 
-  <p id="statusMsg" class="status"></p>
+  <section class="hero-card">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="badge">AI-Powered Code Intelligence</div>
+      <h1>AI Repository Analyzer</h1>
+      <p class="hero-sub">Analyze any public repo with AI-powered code understanding, summaries, dependency insights, and contextual Q&A.</p>
 
-  <section class="chat-box" id="chatBox">
-    <div class="chat-placeholder" id="chatPlaceholder">
-      Connect a repository to start asking questions.
+      <div class="connect-box">
+        <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo" />
+        <button id="connectBtn">Connect</button>
+      </div>
+      <p id="statusMsg" class="status"></p>
     </div>
   </section>
 
-  <section class="ask-box">
-    <input type="text" id="questionInput" placeholder="Ask something about the code..." disabled />
-    <button id="askBtn" disabled>Ask</button>
+  <div class="repo-status-bar" id="repoStatusBar" style="display:none;">
+    <div class="status-left">
+      <span class="status-dot"></span>
+      <span id="statusRepoName" class="status-repo-name"></span>
+    </div>
+    <div class="status-chips" id="statusChips"></div>
+  </div>
+
+  <section class="dashboard" id="dashboard" style="display:none;"></section>
+
+  <section class="chat-card" id="chatCard" style="display:none;">
+    <div class="chat-header">
+      <div>
+        <h3>Ask the Repository</h3>
+        <p class="chat-sub">Ask about architecture, file purpose, data flow, dependencies, bugs, or setup.</p>
+      </div>
+      <div class="chat-header-chips">
+        <span class="chip chip-repo" id="chatRepoChip"></span>
+        <span class="chip chip-status">Indexed</span>
+      </div>
+    </div>
+
+    <div class="quick-prompts" id="quickPrompts">
+      <button class="qp-btn" data-q="What does this project do?">What does this project do?</button>
+      <button class="qp-btn" data-q="Explain the folder structure">Explain the folder structure</button>
+      <button class="qp-btn" data-q="Trace the main data flow">Trace the main data flow</button>
+      <button class="qp-btn" data-q="What are the most important files?">What are the most important files?</button>
+      <button class="qp-btn" data-q="How do I run this project?">How do I run this project?</button>
+    </div>
+
+    <div class="chat-box" id="chatBox">
+      <div class="chat-placeholder" id="chatPlaceholder">
+        Ask a question above, or try one of the quick prompts.
+      </div>
+    </div>
+
+    <div class="ask-box">
+      <input type="text" id="questionInput" placeholder="Ask something about the code..." />
+      <button id="askBtn">Ask</button>
+    </div>
   </section>
+
 </div>
 
 <script>
+const ICONS = {
+  summary: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+  stack: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
+  stats: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+  entry: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+  folder: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+  file: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+  package: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+  flow: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 6.5h4a3 3 0 0 1 3 3V10"/></svg>`,
+  settings: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82 2 2 0 1 1-2.83 2.83 1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33 2 2 0 1 1-2.83-2.83 1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82 2 2 0 1 1 2.83-2.83 1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33 2 2 0 1 1 2.83 2.83 1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`
+};
+
 const repoUrlInput = document.getElementById("repoUrl");
 const connectBtn = document.getElementById("connectBtn");
 const statusMsg = document.getElementById("statusMsg");
+const dashboard = document.getElementById("dashboard");
+const repoStatusBar = document.getElementById("repoStatusBar");
+const statusRepoName = document.getElementById("statusRepoName");
+const statusChips = document.getElementById("statusChips");
+const chatCard = document.getElementById("chatCard");
+const chatRepoChip = document.getElementById("chatRepoChip");
 const chatBox = document.getElementById("chatBox");
 const chatPlaceholder = document.getElementById("chatPlaceholder");
 const questionInput = document.getElementById("questionInput");
 const askBtn = document.getElementById("askBtn");
+const quickPrompts = document.getElementById("quickPrompts");
 
 function setStatus(text, isError = false) {
   statusMsg.textContent = text;
   statusMsg.className = "status " + (isError ? "error" : "success");
+}
+
+function chipHtml(text, cls = "") {
+  return `<span class="chip ${cls}">${text}</span>`;
+}
+
+function renderStatusBar(stats, overview) {
+  repoStatusBar.style.display = "flex";
+  statusRepoName.textContent = stats.repo_name;
+  chatRepoChip.textContent = stats.repo_name.split("/").pop();
+
+  let chips = "";
+  chips += chipHtml(`${stats.files_indexed} files`, "chip-neutral");
+  chips += chipHtml(stats.main_language, "chip-neutral");
+  (overview?.tech_stack || []).slice(0, 3).forEach(t => {
+    chips += chipHtml(t, "chip-accent");
+  });
+  statusChips.innerHTML = chips;
+}
+
+function renderOverview(o, stats) {
+  dashboard.style.display = "grid";
+
+  const listItems = (arr) => (arr && arr.length)
+    ? arr.map(item => `<li>${item}</li>`).join("")
+    : "<li class='empty'>Not detected</li>";
+
+  const folderItems = (arr) => (arr && arr.length)
+    ? arr.map(f => `<li><strong>${f.folder}</strong> — ${f.purpose}</li>`).join("")
+    : "<li class='empty'>Not detected</li>";
+
+  const fileItems = (arr) => (arr && arr.length)
+    ? arr.map(f => `<li><strong>${f.file}</strong> — ${f.why}</li>`).join("")
+    : "<li class='empty'>Not detected</li>";
+
+  const tagsHtml = (arr, cls = "chip-neutral") => (arr && arr.length)
+    ? arr.map(t => chipHtml(t, cls)).join("")
+    : "<span class='empty'>Not detected</span>";
+
+  dashboard.innerHTML = `
+    <div class="card card-span-2">
+      <div class="card-head"><span class="card-icon">${ICONS.summary}</span><h3>Project Summary</h3></div>
+      <div class="summary-block">
+        <span class="summary-label">Purpose</span>
+        <p>${o.summary || "Not available."}</p>
+      </div>
+      <div class="summary-block">
+        <span class="summary-label">Architecture</span>
+        <p>${o.architecture_style || "Not detected."}</p>
+      </div>
+      ${o.key_features && o.key_features.length ? `
+      <div class="summary-block">
+        <span class="summary-label">Key Features</span>
+        <ul>${listItems(o.key_features)}</ul>
+      </div>` : ""}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-icon">${ICONS.stack}</span><h3>Tech Stack</h3></div>
+      <div class="tags">${tagsHtml(o.tech_stack, "chip-accent")}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-icon">${ICONS.stats}</span><h3>Repository Stats</h3></div>
+      <ul class="stats-list">
+        <li><strong>${stats.files_indexed}</strong> files indexed</li>
+        <li><strong>${stats.chunks_created ?? "—"}</strong> chunks created</li>
+        <li><strong>${stats.main_language}</strong>-heavy</li>
+        <li>Cached locally</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-icon">${ICONS.entry}</span><h3>Primary Entry Points</h3></div>
+      <ul>${listItems(o.entry_points)}</ul>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-icon">${ICONS.folder}</span><h3>Repository Structure</h3></div>
+      <ul>${folderItems(o.folder_overview)}</ul>
+    </div>
+
+    <div class="card card-span-2">
+      <div class="card-head"><span class="card-icon">${ICONS.file}</span><h3>Start Here: Key Files</h3></div>
+      <ul>${fileItems(o.main_files)}</ul>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-icon">${ICONS.package}</span><h3>Key Dependencies</h3></div>
+      <div class="tags">${tagsHtml(o.dependencies, "chip-neutral")}</div>
+    </div>
+
+    <div class="card card-span-3">
+      <div class="card-head"><span class="card-icon">${ICONS.flow}</span><h3>Data Flow</h3></div>
+      <p>${o.data_flow || "Not available."}</p>
+    </div>
+
+    <div class="card card-span-3">
+      <div class="card-head"><span class="card-icon">${ICONS.settings}</span><h3>Local Development Setup</h3></div>
+      <ol>${listItems(o.setup_instructions)}</ol>
+    </div>
+  `;
 }
 
 function addMessage(text, sender, sources = []) {
@@ -59,10 +217,11 @@ function addMessage(text, sender, sources = []) {
   msg.appendChild(bubble);
 
   if (sources.length > 0) {
-    const src = document.createElement("div");
-    src.className = "sources";
-    src.textContent = "Sources: " + sources.join(", ");
-    msg.appendChild(src);
+    const srcWrap = document.createElement("div");
+    srcWrap.className = "sources-wrap";
+    srcWrap.innerHTML = `<span class="sources-label">Sources</span>` +
+      sources.map(s => `<span class="source-chip">${s}</span>`).join("");
+    msg.appendChild(srcWrap);
   }
 
   chatBox.appendChild(msg);
@@ -78,7 +237,7 @@ connectBtn.addEventListener("click", async () => {
 
   connectBtn.disabled = true;
   connectBtn.textContent = "Indexing...";
-  setStatus("Fetching and indexing repository files. This can take a bit for large repos...");
+  setStatus("Fetching and indexing repository files...");
 
   try {
     const res = await fetch("/connect", {
@@ -92,15 +251,22 @@ connectBtn.addEventListener("click", async () => {
       setStatus(data.error || "Failed to connect repo.", true);
     } else {
       setStatus(data.message);
-      questionInput.disabled = false;
-      askBtn.disabled = false;
-      addMessage(`Connected to ${repoUrl}. Ask me anything about this codebase.`, "bot");
+      chatCard.style.display = "flex";
+      if (data.stats) renderStatusBar(data.stats, data.overview);
+      if (data.overview) renderOverview(data.overview, data.stats);
     }
   } catch (err) {
     setStatus("Something went wrong: " + err.message, true);
   } finally {
     connectBtn.disabled = false;
     connectBtn.textContent = "Connect";
+  }
+});
+
+quickPrompts.addEventListener("click", (e) => {
+  if (e.target.classList.contains("qp-btn")) {
+    questionInput.value = e.target.dataset.q;
+    askQuestion();
   }
 });
 
