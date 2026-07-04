@@ -10,4 +10,4 @@ tiktoken
 gunicorn
 tenacity
 langchain-groq
-fastembed
+langchain-cohere

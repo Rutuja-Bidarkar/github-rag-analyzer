@@ -3,7 +3,7 @@ import json
 import hashlib
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import FastEmbedEmbeddings
+from langchain_cohere import CohereEmbeddings
 from langchain_groq import ChatGroq
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
@@ -15,13 +15,16 @@ def get_repo_cache_path(repo_url):
     return f"cache/{repo_hash}"
 
 
-def get_embeddings():
-    return FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+def get_embeddings(cohere_api_key):
+    return CohereEmbeddings(
+        model="embed-english-light-v3.0",
+        cohere_api_key=cohere_api_key
+    )
 
 
-def build_vectorstore(files, repo_url):
+def build_vectorstore(files, repo_url, cohere_api_key):
     cache_path = get_repo_cache_path(repo_url)
-    embeddings = get_embeddings()
+    embeddings = get_embeddings(cohere_api_key)
 
     if os.path.exists(cache_path):
         print(f"Loading cached index for {repo_url}")

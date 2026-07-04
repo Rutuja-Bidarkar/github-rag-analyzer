@@ -12,6 +12,7 @@ app.secret_key = os.getenv("FLASK_SECRET", "dev-secret")
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 
 # In-memory store per process (fine for a demo/free-tier single dyno)
 VECTORSTORES = {}
@@ -31,7 +32,7 @@ def connect():
     if not files:
         return jsonify({"error": "No readable files found."}), 400
     try:
-        vs = build_vectorstore(files, repo_url)
+        vs = build_vectorstore(files, repo_url, COHERE_API_KEY)
     except Exception as e:
         return jsonify({"error": f"Failed to index repo: {str(e)}"}), 500
 
